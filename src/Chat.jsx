@@ -1,13 +1,14 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import Markdown from "react-markdown";
 import { useCharacterStore } from "./store/characterStore";
-import LastMessageActions from "./components/LastMessageActions";
 
 // Constants for hierarchical summarization
 const CHUNK_SIZE = 7;      // messages per chunk
 const CHUNKS_PER_CHAPTER = 10;
 const CHAPTERS_PER_GLOBAL = 10;
 
+// BASE API URL
+const BASE_URL = 'https://fastapi-characters-ywlm.onrender.com';
 function MessageBubble({ msg }) {
   const isUser = msg.role === "user";
   const isSummary = msg.role === "summary";
@@ -75,7 +76,7 @@ function Chat() {
       ws.current = null;
     }
 
-    ws.current = new WebSocket(`https://fastapi-characters-ywlm.onrender.com/ws/${characterId}`);
+    ws.current = new WebSocket(`${BASE_URL}/ws/${characterId}`);
 
     ws.current.onopen = () => setStatus("Connected");
 
@@ -122,7 +123,7 @@ function Chat() {
         const lastChunk = rawMessages.slice(lastChunkStart);
 
         if (lastChunk.length === CHUNK_SIZE) {
-          const res = await fetch("http://localhost:8000/chat/summary", {
+          const res = await fetch(`${BASE_URL}/chat/summary`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ history: lastChunk, character_id: characterId }),
@@ -146,7 +147,7 @@ function Chat() {
 
         if (chunkSummaries.length >= CHUNKS_PER_CHAPTER) {
           const chapterChunks = chunkSummaries.slice(0, CHUNKS_PER_CHAPTER);
-          const res = await fetch("https://fastapi-characters-ywlm.onrender.com/chat/summary", {
+          const res = await fetch(`${BASE_URL}/chat/summary`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -178,7 +179,7 @@ function Chat() {
 
         if (chapterSummaries.length >= CHAPTERS_PER_GLOBAL) {
           const chaptersToRoll = chapterSummaries.slice(0, CHAPTERS_PER_GLOBAL);
-          const res = await fetch("https://fastapi-characters-ywlm.onrender.com/chat/summary", {
+          const res = await fetch(`${BASE_URL}/chat/summary`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
