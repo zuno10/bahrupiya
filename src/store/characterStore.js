@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 const LOCAL_STORAGE_KEY = 'chatHistories';
+const BASE_URL = "http://127.0.0.1:8000";
 
 export const useCharacterStore = create((set, get) => ({
   characters: [],
@@ -8,25 +9,41 @@ export const useCharacterStore = create((set, get) => ({
   loading: false,
   error: null,
 
-  // Store chat history per characterId
-  chatHistories: JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '{}'),
+  chatHistories: typeof window !== "undefined"
+    ? JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '{}')
+    : {},
 
   fetchCharacters: async () => {
     set({ loading: true, error: null });
-    try {
-      const res = await fetch('https://fastapi-characters-ywlm.onrender.com/characters');
-      if (!res.ok) throw new Error(`Error ${res.status}`);
-      const data = await res.json();
+
+    let attempts = 0;
+    const maxAttempts = 8;
+    let success = false;
+    let data = [];
+
+    while (attempts < maxAttempts && !success) {
+      try {
+        const res = await fetch(`${BASE_URL}/characters`);
+        if (!res.ok) throw new Error(`Error ${res.status}`);
+        data = await res.json();
+        success = true;
+      } catch (err) {
+        console.error(`Attempt ${attempts + 1} failed:`, err);
+        attempts++;
+        // Wait 1 second before retrying
+        await new Promise((r) => setTimeout(r, 10000));
+      }
+    }
+
+    if (success) {
       set({ characters: data, loading: false });
-    } catch (err) {
-      console.error(err);
-      set({ error: err.message, loading: false });
+    } else {
+      set({ error: `Failed to fetch characters after ${maxAttempts} attempts`, loading: false });
     }
   },
 
   selectCharacter: (character) => set({ selectedCharacter: character }),
 
-  // Save message to chat history
   addMessage: (characterId, message) => {
     const { chatHistories } = get();
     const updatedHistory = chatHistories[characterId]
@@ -37,13 +54,11 @@ export const useCharacterStore = create((set, get) => ({
     set({ chatHistories: newHistories });
   },
 
-  // Load messages for a character
   getMessages: (characterId) => {
     const { chatHistories } = get();
     return chatHistories[characterId] || [];
   },
 
-  // Clear all chats for a character (optional)
   clearChat: (characterId) => {
     const { chatHistories } = get();
     const newHistories = { ...chatHistories, [characterId]: [] };
