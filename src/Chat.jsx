@@ -8,7 +8,7 @@ const CHUNKS_PER_CHAPTER = 10;
 const CHAPTERS_PER_GLOBAL = 10;
 
 // BASE API URL
-const BASE_URL = 'https://fastapi-characters-ywlm.onrender.com';
+const BASE_URL = "http://127.0.0.1:8000";
 function MessageBubble({ msg }) {
   const isUser = msg.role === "user";
   const isSummary = msg.role === "summary";
@@ -78,7 +78,12 @@ function Chat() {
 
     ws.current = new WebSocket(`${BASE_URL}/ws/${characterId}`);
 
-    ws.current.onopen = () => setStatus("Connected");
+    ws.current.onopen = () => {
+      setStatus("Connected");
+      const history = getMessages(characterId);
+      ws.current.send(JSON.stringify({ type: "resume", history }));
+    };
+
 
     ws.current.onmessage = (event) => {
       let parsed;
@@ -236,6 +241,18 @@ function Chat() {
         >
           Change Character
         </button>
+        {/* Clear Chat Button */}
+          {selectedCharacter && (
+            <button
+              onClick={() => {
+                addMessage && useCharacterStore.getState().clearChat(selectedCharacter.id);
+                setMessages([]); // also clear local state immediately
+              }}
+              className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
+            >
+              Clear Chat
+            </button>
+          )}
       </div>
 
       {/* Status */}
